@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Perfil | PodWave</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+
+<body class="bg-light d-flex flex-column min-vh-100">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top shadow-sm mb-4">
+        <div class="container-fluid px-lg-5">
+            <a class="navbar-brand fw-bold text-primary" href="/feed">
+                <i class="bi bi-mic-fill me-1"></i> PODWAVE
+            </a>
+
+            <!-- Campo de Busca -->
+            <form class="d-none d-md-flex mx-auto" style="width: 40%;">
+                <div class="input-group">
+                    <input type="text" class="form-control bg-light border-0"
+                        placeholder="Pesquisar podcasts, episódios ou criadores..." style="border-radius: 20px 0 0 20px;">
+                    <button class="btn btn-light border-0" type="button" style="border-radius: 0 20px 20px 0;">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+
+            <div class="d-flex align-items-center">
+                <a href="/upload" class="btn btn-outline-primary border-0 me-3 d-none d-sm-block fw-semibold">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Publicar
+                </a>
+                <div class="dropdown">
+                    <a href="#" class="d-block link-dark text-decoration-none dropdown-toggle" id="dropdownUser"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="<%= user.profilePicture ? '/uploads/profiles/' + user.profilePicture : '/images/default-profile.png' %>"
+                            alt="mdo" width="32" height="32" class="rounded-circle object-fit-cover bg-secondary">
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end text-small shadow border-0 mt-2" aria-labelledby="dropdownUser">
+                        <li><a class="dropdown-item py-2" href="/profile/edit"><i class="bi bi-person me-2"></i> Meu Perfil</a></li>
+                        <li><a class="dropdown-item py-2" href="/my-podcasts"><i class="bi bi-mic me-2"></i> Meus Podcasts</a></li>
+                        <li><a class="dropdown-item py-2 text-primary" href="/admin/dashboard"><i class="bi bi-speedometer2 me-2"></i> Dashboard (Admin)</a></li>
+                        <li><a class="dropdown-item py-2" href="/settings"><i class="bi bi-gear me-2"></i> Configurações</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2 text-danger" href="/logout"><i class="bi bi-box-arrow-right me-2"></i> Sair</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4 mb-5 flex-grow-1">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+
+                <!-- Alertas -->
+                <% if (messages.error && messages.error.length> 0) { %>
+                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <%= messages.error %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <% } %>
+
+                <% if (messages.success && messages.success.length> 0) { %>
+                    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <%= messages.success %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <% } %>
+
+                <!-- Card de Edição -->
+                <div class="card auth-card border-0 shadow-sm rounded-4">
+                    <div class="auth-header bg-primary text-white p-4 rounded-top-4 text-center">
+                        <h2 class="fw-bold mb-0">Editar Perfil</h2>
+                        <p class="text-white-50 small mt-2 mb-0">Atualize suas informações pessoais</p>
+                    </div>
+                    <div class="card-body p-4 p-md-5">
+
+                        <form action="/profile/edit" method="POST" enctype="multipart/form-data">
+
+                            <!-- Foto de Perfil -->
+                            <div class="text-center mb-4">
+                                <div class="position-relative d-inline-block">
+                                    <img src="<%= user.profilePicture ? '/uploads/profiles/' + user.profilePicture : '/images/default-profile.png' %>"
+                                        alt="Avatar" class="rounded-circle border shadow-sm mb-2" id="imgPreview"
+                                        width="110" height="110" style="object-fit: cover;">
+                                    <label for="profilePicture"
+                                        class="btn btn-sm btn-dark position-absolute bottom-0 end-0 rounded-circle d-flex align-items-center justify-content-center shadow"
+                                        style="width: 34px; height: 34px; padding: 0; cursor: pointer;">
+                                        <i class="bi bi-camera-fill" style="font-size: 0.85rem;"></i>
+                                    </label>
+                                    <input type="file" class="d-none" id="profilePicture" name="profilePicture"
+                                        accept="image/*" onchange="previewImage(this)">
+                                </div>
+                                <p class="small text-muted mt-2 mb-0">Clique no ícone para alterar sua foto</p>
+                            </div>
+
+                            <!-- Nome de Usuário (desabilitado) -->
+                            <div class="mb-3">
+                                <label for="username" class="form-label fw-semibold">Nome de Usuário</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="bi bi-at text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control bg-light border-start-0"
+                                        id="username" value="<%= user.username %>" disabled>
+                                </div>
+                                <div class="form-text text-muted">O nome de usuário não pode ser alterado.</div>
+                            </div>
+
+                            <!-- Nome Completo -->
+                            <div class="mb-3">
+                                <label for="fullName" class="form-label fw-semibold">Nome Completo</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="bi bi-person text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control bg-light border-start-0"
+                                        id="fullName" name="fullName"
+                                        value="<%= user.fullName || '' %>" placeholder="Seu nome completo">
+                                </div>
+                            </div>
+
+                            <!-- Biografia -->
+                            <div class="mb-4">
+                                <label for="bio" class="form-label fw-semibold">Biografia</label>
+                                <div class="input-group align-items-start">
+                                    <span class="input-group-text bg-light border-end-0" style="padding-top: 0.55rem;">
+                                        <i class="bi bi-pencil text-muted"></i>
+                                    </span>
+                                    <textarea class="form-control bg-light border-start-0"
+                                        id="bio" name="bio" rows="3" maxlength="255"
+                                        placeholder="Conte um pouco sobre você e seus podcasts favoritos..."><%= user.bio || '' %></textarea>
+                                </div>
+                                <div class="form-text text-end small" id="charCount">0/255</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2 mb-3 shadow-sm fw-bold rounded-pill">
+                                Salvar Alterações
+                            </button>
+
+                            <div class="text-center mt-2">
+                                <a href="/feed" class="text-muted small text-decoration-none fw-semibold">
+                                    <i class="bi bi-arrow-left me-1"></i> Cancelar e voltar ao Feed
+                                </a>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-auto">
+        <div class="container text-center">
+            <div class="mb-2">
+                <i class="bi bi-mic-fill fs-5 text-secondary"></i>
+            </div>
+            <p class="mb-0 small text-secondary">&copy; 2026 PodWave. Desenvolvido na disciplina ServerSide.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Preview da imagem antes do upload
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('imgPreview').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Contador de caracteres para a bio
+        const bio = document.getElementById('bio');
+        const charCount = document.getElementById('charCount');
+
+        bio.addEventListener('input', () => {
+            charCount.textContent = `${bio.value.length}/255`;
+        });
+
+        // Inicializar contador
+        charCount.textContent = `${bio.value.length}/255`;
+    </script>
+</body>
+
+</html>
