@@ -1,50 +1,30 @@
-import bcrypt from 'bcryptjs';
 import User from '../userModel.js';
+import bcrypt from 'bcryptjs';
 
 const userService = {
-    async registerUser({ username, email, password, confirmPassword, fullName }) {
-        // Regra 1: Campos obrigatórios
-        if (!username || !email || !password || !confirmPassword) {
-            throw new Error('Todos os campos obrigatórios devem ser preenchidos.');
-        }
+    registerUser: async (userData) => {
+        const { username, email, password, confirmPassword } = userData;
 
-        // Regra 2: Tamanho mínimo da senha
-        if (password.length < 6) {
-            throw new Error('A senha deve ter pelo menos 6 caracteres.');
-        }
-
-        // Regra 3: Senhas coincidentes
+        // 1. Validação básica
         if (password !== confirmPassword) {
             throw new Error('As senhas não coincidem.');
         }
 
-        // Regra 4: Validação de formato de e-mail
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            throw new Error('Formato de e-mail inválido.');
+        // 2. Verifica se o usuário já existe
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+            throw new Error('E-mail já está cadastrado no sistema.');
         }
 
-        // Regra 5: E-mail já existe
-        const emailExists = await User.findOne({ where: { email } });
-        if (emailExists) {
-            throw new Error('Este e-mail já está cadastrado.');
-        }
-
-        // Regra 6: Username já existe
-        const usernameExists = await User.findOne({ where: { username } });
-        if (usernameExists) {
-            throw new Error('Este usuário já está cadastrado.');
-        }
-
-        // Sucesso: Hash e Criação
+        // 3. O Requisito da N2: Hash de Senhas com bcryptjs
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // 4. Criação no banco
         const newUser = await User.create({
             username,
             email,
-            password: hashedPassword,
-            fullName
+            password: hashedPassword
         });
 
         return newUser;

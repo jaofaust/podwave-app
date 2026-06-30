@@ -2,15 +2,17 @@ import express from 'express';
 const router = express.Router();
 
 import userController from '../modules/user/userController.js'; 
-// Depois (importação nomeada correta)
 import { authMiddleware } from '../middlewares/auth.js';
-import adminMiddleware from '../middlewares/admin.js'; // NOVO MIDDLEWARE
+import adminMiddleware from '../middlewares/admin.js'; 
 import upload from '../middlewares/multer.js';
 import Favorite from '../modules/user/favoriteModel.js'; 
 import Progress from '../modules/user/progressModel.js';
 import Podcast from '../modules/podcast/podcastModel.js'; 
 import User from '../modules/user/userModel.js';
+import reviewController from '../modules/review/reviewController.js';
 
+// ==========================================
+// ROTAS PÚBLICAS
 // ==========================================
 
 router.get('/', function (req, res, next) {
@@ -31,26 +33,43 @@ router.post('/login', userController.login);
 
 router.get('/logout', userController.logout);
 
+// ==========================================
+// ROTAS LOGADAS (FEED E PERFIL)
+// ==========================================
+
 router.get('/feed', authMiddleware, async (req, res) => {
     try {
         const user = await userController.getProfile(req.session.user.id);
         
-        // Busca os favoritos
+        // 1. Busca os favoritos
         const userFavorites = await Favorite.findAll({
             where: { userId: req.session.user.id }
         });
         const favoriteIds = userFavorites.map(fav => fav.podcastId.toString());
 
-        // Busca os podcasts reais no banco de dados
+        // 2. O SEGREDO: Busca todos os progressos desse usuário
+        const userProgress = await Progress.findAll({
+            where: { userId: req.session.user.id }
+        });
+        
+        // Cria um "dicionário" fácil pro HTML ler (ex: progressMap[1] = 120 segundos)
+        const progressMap = {};
+        userProgress.forEach(p => {
+            const pId = p.podcastId || p.PodcastId;
+            progressMap[pId] = p.currentTime;
+        });
+
+        // 3. Busca os podcasts reais no banco
         const podcasts = await Podcast.findAll({
             order: [['createdAt', 'DESC']]
         });
 
-        // ENVIA A VARIÁVEL PARA O EJS AQUI 👇
+        // 4. Envia tudo para o EJS
         res.render('home', { 
             user: user, 
             favoriteIds: favoriteIds, 
-            podcasts: podcasts 
+            podcasts: podcasts,
+            progressMap: progressMap // <--- Mapeamento de tempo enviado pra tela!
         });
 
     } catch (error) {
@@ -58,47 +77,82 @@ router.get('/feed', authMiddleware, async (req, res) => {
         res.status(500).send("Erro interno ao carregar o feed de conteúdos.");
     }
 });
+
 router.get('/profile/edit', authMiddleware, async (req, res) => {
     const user = await userController.getProfile(req.session.user.id);
     res.render('edit-profile', { user });
 });
 
+router.post('/profile/edit', authMiddleware, upload.single('profilePicture'), userController.updateProfile);
+
+// ==========================================
+// ROTA CONTINUAR OUVINDO (UNIFICADA E CORRIGIDA)
+// ==========================================
 router.get('/continue', authMiddleware, async (req, res) => {
-    const user = await userController.getProfile(req.session.user.id);
-    res.render('continue', { title: 'Continuar Ouvindo', user: user });
+    try {
+        const user = req.session.user; // Pega o usuário logado
+        
+        // 1. Busca todos os progressos
+        const progressRecords = await Progress.findAll({
+            where: { userId: user.id }
+        });
+
+        const continuePodcasts = [];
+
+        // 2. Varre os progressos e busca o podcast correspondente
+        for (let record of progressRecords) {
+            // TRAVA DE SEGURANÇA: Garante que vai achar o ID independente de como o Sequelize salvou
+            const idDoPodcast = record.podcastId || record.PodcastId; 
+            
+            if (idDoPodcast) {
+                const podcast = await Podcast.findByPk(idDoPodcast);
+                if (podcast) {
+                    const podData = podcast.toJSON();
+                    podData.currentTime = record.currentTime; // Injeta o tempo exato
+                    continuePodcasts.push(podData);
+                }
+            }
+        }
+
+        // 3. Renderiza a tela
+        res.render('continue', { 
+            title: 'Continuar Ouvindo', 
+            user: user,
+            podcasts: continuePodcasts 
+        });
+    } catch (error) {
+        console.error('Erro na rota continuar ouvindo:', error);
+        res.status(500).send("Erro interno.");
+    }
 });
 
-/// ==========================================
+// ==========================================
 // ROTA DO ADMIN - PROTEGIDA E COM ESTATÍSTICAS
 // ==========================================
 router.get('/admin/dashboard', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const user = req.session.user;
         
-        // 1. Buscando as estatísticas (Contagem direta no banco)
         const totalUsers = await User.count();
         const totalPodcasts = await Podcast.count();
         const totalFavorites = await Favorite.count();
         
-        // 2. Busca os podcasts para listar em uma tabela
         const podcasts = await Podcast.findAll({
-            order: [['createdAt', 'DESC']], // Mais recentes primeiro
-            limit: 5 // Traz apenas os 5 últimos adicionados para o dashboard não ficar gigante
+            order: [['createdAt', 'DESC']],
+            limit: 5
         });
 
-        // 3. Monta o objeto de estatísticas
         const stats = {
             users: totalUsers,
             podcasts: totalPodcasts,
             favorites: totalFavorites
         };
 
-        // 4. Renderiza a tela enviando tudo
         res.render('admin/dashboard', { 
             title: 'Painel de Controle', 
             user: user,
             podcasts: podcasts,
-            stats: stats // <--- Enviando os números pro frontend
+            stats: stats 
         });
     } catch (error) {
         console.error('Erro ao carregar o dashboard do admin:', error);
@@ -106,8 +160,15 @@ router.get('/admin/dashboard', authMiddleware, adminMiddleware, async (req, res)
     }
 });
 
+router.get('/upload', authMiddleware, (req, res) => {
+    res.render('upload', { 
+        title: 'Publicar Podcast',
+        user: req.session.user 
+    });
+});
+
 // ==========================================
-// ROTA DA TELA DE FAVORITOS
+// ROTAS EXTRAS DO MENU
 // ==========================================
 router.get('/favorites', authMiddleware, async (req, res) => {
     try {
@@ -117,8 +178,6 @@ router.get('/favorites', authMiddleware, async (req, res) => {
             where: { userId: req.session.user.id }
         });
 
-        
-        
         const favoriteIds = userFavorites.map(fav => fav.podcastId);
 
         let favoritePodcasts = [];
@@ -158,7 +217,7 @@ router.get('/explore', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE API (Ações do Banco de Dados)
+// ROTAS DE API (Ações de Background)
 // ==========================================
 
 router.post('/api/favorites/toggle', authMiddleware, async (req, res) => {
@@ -211,40 +270,6 @@ router.post('/api/progress/save', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/upload', authMiddleware, (req, res) => {
-    res.render('upload', { 
-        title: 'Publicar Podcast',
-        user: req.session.user 
-    });
-});
+router.post('/api/reviews', authMiddleware, reviewController.addReview);
 
-router.get('/continue', authMiddleware, async (req, res) => {
-    try {
-        const userId = req.session.user.id;
-        
-        // Busca o progresso e já traz os dados do podcast junto (Join)
-        const progressRecords = await Progress.findAll({
-            where: { userId: userId },
-            include: [Podcast] 
-        });
-
-        // Monta o array que o EJS espera
-        const podcasts = progressRecords.map(p => ({
-            ...p.Podcast.toJSON(),
-            currentTime: p.currentTime,
-            totalTime: 3600 // Exemplo: defina o total do episódio ou busque no DB
-        }));
-
-        res.render('continue', { 
-            title: 'Continuar Ouvindo', 
-            user: req.session.user, 
-            podcasts: podcasts 
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).send("Erro ao carregar");
-    }
-});
-router.post('/profile/edit', authMiddleware, upload.single('profilePicture'), userController.updateProfile);
-
-export default router;                                                      
+export default router;

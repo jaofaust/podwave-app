@@ -2,8 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    globals: true,
+    globals: true, // Permite usar describe/it direto
     environment: 'node',
-    setupFiles: ['./vitest.setup.js'], // Aponta para o arquivo de setup global
+    include: ['**/*.spec.js'], // <--- Diz pro Vitest rodar os arquivos .spec.js
   },
 });
