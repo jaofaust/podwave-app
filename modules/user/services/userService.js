@@ -5,22 +5,25 @@ const userService = {
     registerUser: async (userData) => {
         const { username, email, password, confirmPassword } = userData;
 
-        // 1. Validação básica
+        // Novas validações para garantir cobertura máxima nos testes
+        if (!username || !email || !password) {
+            throw new Error('Todos os campos são obrigatórios.');
+        }
         if (password !== confirmPassword) {
             throw new Error('As senhas não coincidem.');
         }
+        if (password.length < 6) {
+            throw new Error('A senha deve ter pelo menos 6 caracteres.');
+        }
 
-        // 2. Verifica se o usuário já existe
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             throw new Error('E-mail já está cadastrado no sistema.');
         }
 
-        // 3. O Requisito da N2: Hash de Senhas com bcryptjs
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Criação no banco
         const newUser = await User.create({
             username,
             email,

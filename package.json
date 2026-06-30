@@ -4,11 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node ./bin/www",
-    "dev": "nodemon ./bin/www",
-    "test": "vitest run",
-    "coverage": "vitest run --coverage"
-  },
+  "start": "node app.js",
+  "dev": "nodemon app.js",
+  "test": "vitest run --coverage"
+},
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "connect-flash": "^0.1.1",
@@ -26,7 +25,7 @@
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^4.1.9",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
     "vitest": "^4.1.9"

@@ -2,8 +2,20 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    globals: true, // Permite usar describe/it direto
+    globals: true,
     environment: 'node',
-    include: ['**/*.spec.js'], // <--- Diz pro Vitest rodar os arquivos .spec.js
+    include: ['**/*.spec.js'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      exclude: [
+        'config/**', 
+        'middlewares/**', 
+        'routes/**', 
+        'app.js',
+        'node_modules/**',
+        '**/*.spec.js' // Exclui os próprios testes da contagem
+      ],
+    },
   },
 });
